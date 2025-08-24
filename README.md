@@ -12,8 +12,6 @@ This project implements a **data pipeline** that:
 - Is orchestrated with **Dagster**, with a scheduled job.  
 - Can be run locally or via **Docker Compose**.
 
----
-
 ## Features
 
 ✅ Configurable data source via `.env`  
@@ -22,8 +20,6 @@ This project implements a **data pipeline** that:
 ✅ PostgreSQL integration with upsert (`ON CONFLICT`)  
 ✅ Dagster orchestration with cron-based scheduling  
 ✅ Dockerized deployment for portability
-
----
 
 ## Project Structure
 
@@ -38,69 +34,6 @@ This project implements a **data pipeline** that:
 ├── .env.example         # Example environment config
 └── README.md            # Documentation
 ```
-
----
-
-## Setup
-
-### 1. Clone repo
-
-```bash
-git clone https://github.com/yourusername/stock-data-pipeline.git
-cd stock-data-pipeline
-```
-
-### 2. Create `.env`
-
-```env
-# Database
-DB_HOST=localhost
-DB_NAME=stocksdb
-DB_USER=ganther
-DB_PASS=yourpassword
-
-# APIs
-ALPHA_API_KEY=your_alpha_key
-
-# Data source config
-DATA_SOURCE=alpha_vantage    # or yf
-FALLBACK_SOURCE=yf           # optional fallback
-```
-
-### 3. Install dependencies (local run)
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Initialize database
-
-Make sure PostgreSQL is running and execute:
-
-```bash
-psql -U postgres -d stocksdb -f init.sql
-```
-
----
-
-## Running Locally (without Docker)
-
-Run pipeline directly:
-
-```bash
-python main.py
-```
-
-Run Dagster UI:
-
-```bash
-dagster dev -f dagster_pipeline.py
-```
-
-- Open [http://localhost:3000](http://localhost:3000) to view jobs/schedules  
-- The job is scheduled with cron (e.g., every day at 12:50 PM IST). You can also trigger it manually.  
-
----
 
 ## Running with Docker
 
@@ -118,8 +51,6 @@ docker-compose up --build
 ### 3. Volumes
 
 - PostgreSQL data is persisted in `stock_pg_data`
-
----
 
 ## Database Schema
 
@@ -147,8 +78,6 @@ Upserts ensure no duplicates:
 ON CONFLICT (symbol, date) DO UPDATE SET ...
 ```
 
----
-
 ## Error Handling
 
 - **Alpha Vantage**  
@@ -160,8 +89,6 @@ ON CONFLICT (symbol, date) DO UPDATE SET ...
   - Transactions rollback on failure  
   - Closes connections gracefully  
 
----
-
 ## Deliverables
 
 - **Python script (`main.py`)** → data fetching & storing  
@@ -169,7 +96,5 @@ ON CONFLICT (symbol, date) DO UPDATE SET ...
 - **Postgres schema (`init.sql`)** → ensures table/constraints  
 - **Docker setup (`Dockerfile`, `docker-compose.yml`)** → reproducible environment  
 - **README.md** (this file) → documentation  
-
----
 
 ✨ With this setup, you can fetch, process, and store stock data reliably, with orchestration and portability built-in.  
