@@ -1,16 +1,19 @@
-# 📈 Dockerized Stock Data Pipeline with Dagster
+# 📦 Stock Data Pipeline with Dagster and Docker
 
 ## Overview
+This project implements a **stock market data pipeline** that:
+- Fetches stock data from **Yahoo Finance** (`yfinance`) or **Alpha Vantage** API  
+- Cleans and stores it in a **PostgreSQL** database with upsert logic  
+- Is orchestrated by **Dagster** for scheduling and monitoring  
+- Runs locally or inside **Docker Compose** for full reproducibility  
 
-This project implements a **data pipeline** that:
 
-- Fetches daily stock market data for multiple tickers (e.g., `GOOGL`, `MSFT`, `NVDA`)  
-- Supports **multiple data sources**:  
-  - [Alpha Vantage](https://www.alphavantage.co/) (API key required)  
-  - [Yahoo Finance](https://pypi.org/project/yfinance/) (`yfinance`, no API key required)  
-- Stores the cleaned data into a **PostgreSQL** database with **upsert** logic (no duplicates).  
-- Is orchestrated with **Dagster**, with a scheduled job.  
-- Can be run locally or via **Docker Compose**.
+## 🔧 Tech Stack
+- **Python** → data fetching & transformation  
+- **PostgreSQL** → database for stock data  
+- **Dagster** → orchestration, scheduling, monitoring  
+- **Docker + Docker Compose** → containerized services  
+
 
 ## Features
 
@@ -21,41 +24,114 @@ This project implements a **data pipeline** that:
 ✅ Dagster orchestration with cron-based scheduling  
 ✅ Dockerized deployment for portability
 
-## Project Structure
-
+## 📂 Project Structure
 ```
 .
-├── main.py              # Main pipeline script (fetch + store)
-├── dagster_pipeline.py  # Dagster job & schedule definition
+├── main.py              # Pipeline script (fetch + store)
+├── dagster_pipeline.py  # Dagster job & schedule
 ├── requirements.txt     # Dependencies
-├── Dockerfile           # App container
-├── docker-compose.yml   # Multi-service setup (Dagster + Postgres)
-├── init.sql             # DB init script (creates stock_data table)
-├── .env.example         # Example environment config
+├── Dockerfile           # App container (Python + Dagster)
+├── docker-compose.yml   # Multi-container setup
+├── init.sql             # DB init (creates stock_data table)
+├── .env.example         # Example env file
 └── README.md            # Documentation
 ```
 
-## Running with Docker
 
-### 1. Build and start services
+## ⚙️ Setup (Local)
 
+### 1. Clone repo
+```bash
+git clone https://github.com/yourusername/stock-data-pipeline.git
+cd stock-data-pipeline
+```
+
+### 2. Create `.env`
+```env
+# Database
+DB_HOST=localhost
+DB_NAME=stocksdb
+DB_USER=ganther
+DB_PASS=yourpassword
+
+# APIs
+ALPHA_API_KEY=your_alpha_key
+
+# Data source
+DATA_SOURCE=alpha_vantage   # or yf
+FALLBACK_SOURCE=yf          # optional
+```
+
+### 3. Initialize DB (locally)
+```bash
+psql -U postgres -d stocksdb -f init.sql
+```
+
+### 4. Run pipeline manually
+```bash
+python main.py
+```
+
+### 5. Run Dagster locally
+```bash
+dagster dev -f dagster_pipeline.py
+```
+Dagster UI → [http://localhost:3000](http://localhost:3000)
+
+## 🚀 Run with Docker
+
+### 1. Build & start
 ```bash
 docker-compose up --build
 ```
 
 ### 2. Services
-
-- **Postgres DB** → `localhost:5432`  
 - **Dagster UI** → [http://localhost:3000](http://localhost:3000)  
+- **Postgres DB** → `localhost:5432` (inside network: `db-stock:5432`)  
 
-### 3. Volumes
+### 3. Database volume
+```yaml
+volumes:
+  stock_pg_data:
+```
+- Keeps Postgres data even if container restarts  
+- Initialized with `init.sql`  
 
-- PostgreSQL data is persisted in `stock_pg_data`
+## 🐳 Docker Compose (snippet)
 
-## Database Schema
+```yaml
+services:
+  db-stock:
+    image: postgres:15
+    container_name: db-stock
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+    ports:
+      - "5432:5432"
+    volumes:
+      - stock_pg_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
 
-`init.sql` creates the table with unique constraint:
+  dagster:
+    build: .
+    container_name: dagster
+    command: dagster dev -f dagster_pipeline.py -h 0.0.0.0 -p 3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - db-stock
 
+volumes:
+  stock_pg_data:
+```
+
+## 📊 Database Schema
 ```sql
 CREATE TABLE IF NOT EXISTS stock_data (
     id SERIAL PRIMARY KEY,
@@ -72,29 +148,31 @@ CREATE TABLE IF NOT EXISTS stock_data (
 );
 ```
 
-Upserts ensure no duplicates:
+## 🕒 Scheduling
+- Defined in `dagster_pipeline.py` using `ScheduleDefinition`  
+- Example: run daily at **12:50 PM IST**  
+- Can also trigger manually from Dagster UI  
 
-```sql
-ON CONFLICT (symbol, date) DO UPDATE SET ...
+## ✅ Testing
+
+### Local DB
+```bash
+psql -U ganther -d stocksdb
 ```
 
-## Error Handling
+### Docker DB
+```bash
+docker exec -it db-stock psql -U stockuser -d stocksdb
+```
 
-- **Alpha Vantage**  
-  - Handles rate limits → waits 12s between requests  
-  - Detects quota exceeded → falls back to Yahoo Finance if configured  
-- **Yahoo Finance (yfinance)**  
-  - Handles empty/no data case  
-- **Database**  
-  - Transactions rollback on failure  
-  - Closes connections gracefully  
+Check data:
+```sql
+SELECT * FROM stock_data LIMIT 5;
+```
 
 ## Deliverables
-
-- **Python script (`main.py`)** → data fetching & storing  
-- **Dagster job (`dagster_pipeline.py`)** → orchestration & scheduling  
-- **Postgres schema (`init.sql`)** → ensures table/constraints  
-- **Docker setup (`Dockerfile`, `docker-compose.yml`)** → reproducible environment  
-- **README.md** (this file) → documentation  
-
-✨ With this setup, you can fetch, process, and store stock data reliably, with orchestration and portability built-in.  
+- **Python pipeline** → `main.py`  
+- **Dagster job & schedule** → `dagster_pipeline.py`  
+- **Postgres schema** → `init.sql`  
+- **Docker setup** → `Dockerfile`, `docker-compose.yml`  
+- **README.md** → documentation  
