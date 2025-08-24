@@ -1,5 +1,5 @@
 from dagster import job, op, ScheduleDefinition, Definitions
-from main import main
+from app.main import main
 
 
 @op
@@ -18,7 +18,7 @@ def stock_job():
 
 stock_schedule = ScheduleDefinition(
     job=stock_job,
-    cron_schedule="50 12 * * *",
+    cron_schedule="15 12 * * *",
     execution_timezone="Asia/Kolkata",
 )
 

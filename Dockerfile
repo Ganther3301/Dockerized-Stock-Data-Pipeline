@@ -1,7 +1,10 @@
 FROM python:3.11-slim
 
-RUN pip install dagster dagit psycopg2-binary requests python-dotenv dagster-webserver yfinance
+COPY requirements.txt .
 
-COPY main.py dagster_pipeline.py ./
+RUN pip install -r requirements.txt
 
-CMD ["dagster", "dev", "-h", "0.0.0.0", "-f", "dagster_pipeline.py"]
+COPY app/ ./app/
+COPY dagster-job/ ./dagster-job/
+
+CMD ["dagster", "dev", "-h", "0.0.0.0", "-f", "dagster-job/dagster_pipeline.py"]

@@ -27,14 +27,24 @@ This project implements a **stock market data pipeline** that:
 ## 📂 Project Structure
 ```
 .
-├── main.py              # Pipeline script (fetch + store)
-├── dagster_pipeline.py  # Dagster job & schedule
-├── requirements.txt     # Dependencies
-├── Dockerfile           # App container (Python + Dagster)
-├── docker-compose.yml   # Multi-container setup
-├── init.sql             # DB init (creates stock_data table)
-├── .env.example         # Example env file
-└── README.md            # Documentation
+├── app
+│   ├── __init__.py
+│   ├── Config.py
+│   ├── DatabaseManager.py
+│   ├── main.py
+│   └── StockDataFetcher.py
+├── dagster-job
+│   ├── dagster_pipeline.py
+├── docker-compose.yml
+├── Dockerfile
+├── init_db
+│   └── init.sql
+├── __pycache__
+├── pyproject.toml
+├── README.md
+├── requirements.txt
+└── uv.lock
+
 ```
 
 
@@ -44,6 +54,7 @@ This project implements a **stock market data pipeline** that:
 ```bash
 git clone https://github.com/yourusername/stock-data-pipeline.git
 cd stock-data-pipeline
+pip install -r requirements.txt
 ```
 
 ### 2. Create `.env`
@@ -69,7 +80,7 @@ psql -U postgres -d stocksdb -f init.sql
 
 ### 4. Run pipeline manually
 ```bash
-python main.py
+python -m app.main
 ```
 
 ### 5. Run Dagster locally
@@ -150,19 +161,19 @@ CREATE TABLE IF NOT EXISTS stock_data (
 
 ## 🕒 Scheduling
 - Defined in `dagster_pipeline.py` using `ScheduleDefinition`  
-- Example: run daily at **12:50 PM IST**  
+- Example: run daily at **12:15 PM IST**  
 - Can also trigger manually from Dagster UI  
 
 ## ✅ Testing
 
 ### Local DB
 ```bash
-psql -U ganther -d stocksdb
+psql -U <db_user> -d <db_name>
 ```
 
 ### Docker DB
 ```bash
-docker exec -it db-stock psql -U stockuser -d stocksdb
+docker exec -it db-stock psql -U <db_user> -d <db_name>
 ```
 
 Check data:
@@ -171,8 +182,8 @@ SELECT * FROM stock_data LIMIT 5;
 ```
 
 ## Deliverables
-- **Python pipeline** → `main.py`  
-- **Dagster job & schedule** → `dagster_pipeline.py`  
-- **Postgres schema** → `init.sql`  
+- **Python pipeline** → `app/main.py`  
+- **Dagster job & schedule** → `dagster-job/dagster_pipeline.py`  
+- **Postgres schema** → `init-db/init.sql`  
 - **Docker setup** → `Dockerfile`, `docker-compose.yml`  
 - **README.md** → documentation  

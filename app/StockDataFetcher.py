@@ -1,12 +1,7 @@
 import logging
-import os
 import time
-
-import psycopg2
 import requests
 import yfinance as yf
-from dotenv import load_dotenv
-
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -14,29 +9,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class Config:
-    """Configuration management with validation"""
-
-    def __init__(self):
-        load_dotenv()
-
-        self.db_host = os.getenv("DB_HOST", "localhost")
-        self.db_name = os.getenv("DB_NAME")
-        self.db_user = os.getenv("DB_USER")
-        self.db_password = os.getenv("DB_PASS")
-
-        self.alpha_api_key = os.getenv("ALPHA_API_KEY")
-        self.data_source = os.getenv("DATA_SOURCE", "yf").lower()  # main source
-        self.fallback_source = os.getenv("FALLBACK_SOURCE", "yf").lower()  # <-- NEW
-
-        self.symbols = ["GOOGL", "NVDA", "MSFT"]
-        self.api_timeout = 30
-
-
 class StockDataFetcher:
     """Handles stock data fetching and processing"""
 
-    def __init__(self, config: Config):
+    def __init__(self, config):
         self.config = config
 
     def fetch_stock_data(self, symbol: str):
@@ -169,111 +145,3 @@ class StockDataFetcher:
                 time.sleep(12)
 
         return all_data
-
-
-class DatabaseManager:
-    """Handles database operations"""
-
-    def __init__(self, config: Config):
-        self.config = config
-
-    def get_connection(self):
-        try:
-            return psycopg2.connect(
-                host=self.config.db_host,
-                database=self.config.db_name,
-                user=self.config.db_user,
-                password=self.config.db_password,
-                connect_timeout=10,
-            )
-        except psycopg2.Error as e:
-            logger.error(f"Database connection failed: {e}")
-            raise
-
-    def store_stock_data(self, stock_data):
-        if not stock_data:
-            logger.warning("No data to store")
-            return False
-
-        upsert_query = """
-            INSERT INTO stock_data (symbol, date, open_price, high_price, low_price, close_price, volume)
-            VALUES (%s, %s, %s, %s, %s, %s, %s) 
-            ON CONFLICT (symbol, date) 
-            DO UPDATE SET 
-                open_price = EXCLUDED.open_price,
-                high_price = EXCLUDED.high_price,
-                low_price = EXCLUDED.low_price,
-                close_price = EXCLUDED.close_price,
-                volume = EXCLUDED.volume,
-                updated_at = CURRENT_TIMESTAMP;
-        """
-
-        conn = None
-        total_records = 0
-
-        try:
-            conn = self.get_connection()
-            with conn.cursor() as cursor:
-                for symbol, records in stock_data.items():
-                    for record in records:
-                        cursor.execute(
-                            upsert_query,
-                            (
-                                record["symbol"],
-                                record["date"],
-                                record["open"],
-                                record["high"],
-                                record["low"],
-                                record["close"],
-                                record["volume"],
-                            ),
-                        )
-                        total_records += 1
-
-            conn.commit()
-            logger.info(f"Successfully stored {total_records} records")
-            return True
-
-        except psycopg2.Error as e:
-            logger.error(f"Database error: {e}")
-            if conn:
-                conn.rollback()
-            return False
-
-        finally:
-            if conn:
-                conn.close()
-
-
-def main():
-    try:
-        config = Config()
-        fetcher = StockDataFetcher(config)
-        db_manager = DatabaseManager(config)
-
-        logger.info(
-            f"Starting stock data pipeline with source={config.data_source}, "
-            f"fallback={config.fallback_source}"
-        )
-
-        stock_data = fetcher.fetch_all_symbols()
-
-        if not stock_data:
-            logger.error("No data fetched, exiting")
-            return False
-
-        if db_manager.store_stock_data(stock_data):
-            logger.info("Pipeline completed successfully")
-            return True
-        else:
-            logger.error("Pipeline failed")
-            return False
-
-    except Exception as e:
-        logger.error(f"Pipeline failed: {e}")
-        return False
-
-
-if __name__ == "__main__":
-    success = main()
-    exit(0 if success else 1)
