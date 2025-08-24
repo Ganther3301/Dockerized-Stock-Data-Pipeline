@@ -1,0 +1,33 @@
+services:
+  db-stock:
+    image: postgres:16
+    container_name: db-stock
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5433:5432"
+    volumes:
+      - stock_pg_data:/var/lib/postgresql/data
+      - ./init_db:/docker-entrypoint-initdb.d
+
+
+  dagster:
+    build: .
+    container_name: dagster
+    environment:
+      DB_HOST: db-stock
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_NAME}
+      ALPHA_API_KEY: ${ALPHA_API_KEY}
+    volumes:
+      - .:/opt/dagster/app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db-stock
+
+volumes:
+  stock_pg_data:
